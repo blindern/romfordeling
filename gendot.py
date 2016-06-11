@@ -319,30 +319,6 @@ table = {
 		]
 	},
 
-	"ASH": {
-		"x": 7,
-		"y": -7,
-		"nodesa": [
-			["ASH16", -1.5, 5, .4, .8],
-
-			["ASH15", 0, 0, .8, .4],
-			["ASH14", 0, .4, .8, .4],
-			["ASH13", 0, .8, .8, .4],
-			["ASH12", 0, 1.2, .8, .4],
-			["ASH11", 0, 1.6, .8, .4],
-			["ASH10", 0, 2, .8, .4],
-			["ASH9", 0, 2.4, .8, .4],
-			["ASH8", 0, 2.8, .8, .4],
-			["ASH7", 0, 3.2, .8, .4],
-			["ASH6", 0, 3.6, .8, .4],
-			["ASH5", 0, 4, .8, .4],
-			["ASH4", 0, 4.4, .8, .4],
-			["ASH3", 0, 4.8, .8, .4],
-			["ASH2", 0, 5.2, .8, .4],
-			["ASH1", 0, 5.6, .8, .4]
-		]
-	},
-
 	"Gule": {
 		"x": -3,
 		"y": -8,
@@ -393,9 +369,9 @@ dobbeltrom = [
 	"122",
 	"222",
 	"306",
-	"402",
+	#"402",
 	"421",
-	"502",
+	#"502",
 	"521",
 	"605",
 	"1",
@@ -404,13 +380,20 @@ dobbeltrom = [
 	"11",
 	"AX1",
 	"AX2",
-	"AX3"
+	"AX3",
+	"H1",
+	"H2",
+	"H3",
+	"H4",
+	"H5",
+	"H6",
 ]
 
 parrom = [
 	"712",
 	"6B",
-	"P1+4"
+	"P1+4",
+	"H7",
 ]
 
 utlyst = []
@@ -443,7 +426,7 @@ farger = [
 	'gray30', #12
 	'black'  #13
 ]
-farge_ukjent = 'red'
+farge_ukjent = 'orangered'
 
 # hent utlyste rom fra fil
 def load_utlyst(filnavn):
@@ -479,7 +462,7 @@ def load_bytter(filnavn):
 
 	recheck = re.compile(r'^(.+) -> ([^ ]+)( \[(.*)\])?$', re.DOTALL)
 	for line in lines:
-		res = recheck.match(line)
+		res = recheck.match(line.strip())
 		if res:
 			fra.append(str(res.group(1)))
 			til.append(str(res.group(2)))
@@ -501,14 +484,12 @@ def draw_labels_romstatus_resultat():
     print 'label5 [ label = "fraflyttet, ingen opprykk",    fillcolor = darkgreen,      style = filled, pos = "10, 7.0!", shape = box, height = .25 ]'
     print 'label6 [ label = "dobbeltrom",                   fillcolor = gray93,         style = filled, pos = "10, 6.6!", shape = box, height = .25 ]'
     print 'label7 [ label = "ingen endring",                fillcolor = gray40,         style = filled, pos = "10, 6.2!", shape = box, height = .25 ]'
-    print 'label8 [ label = "ikke studentbolig\niht. BS-budsjett (?)",       fillcolor = yellow,         style = filled, pos = "10, 5.7!", shape = box, height = .25 ]'
 
 # tegn labels for bytter
 def draw_labels_romstatus_utlyst():
     print 'label4 [ label = "utlyst",                        fillcolor = green,          style = filled, pos = "10, 9.0!", shape = box, height = .25 ]'
     print 'label7 [ label = "ikke utlyst",                   fillcolor = gray40,         style = filled, pos = "10, 8.6!", shape = box, height = .25 ]'
     print 'label6 [ label = "dobbeltrom\n(fordeles av adm)", fillcolor = gray93,         style = filled, pos = "10, 8.1!", shape = box, height = .25 ]'
-    print 'label8 [ label = "ikke studentbolig\niht. BS-budsjett (?)",       fillcolor = yellow,         style = filled, pos = "10, 7.5!", shape = box, height = .25 ]'
 
 # finn stil for et rom
 def get_extra(rom):
@@ -518,7 +499,7 @@ def get_extra(rom):
 	# utlyst rom
 	if rom in utlyst:
 		# feil: bytte fra
-		if rom in fra and not rom in parrom:
+		if rom in fra and not rom in parrom and not rom in dobbeltrom:
 			extra += ", style = filled, fillcolor=firebrick"
 
 		# ingen tildelt
@@ -560,8 +541,8 @@ def get_extra(rom):
 	if rom in parrom:
 		extra += ", label = \"%s\\n(Parrom)\"" % rom
 
-	if rom[:1] == "H" and len(rom) == 2:
-		extra += ", style=filled, fillcolor=yellow"
+	#if rom[:1] == "H" and len(rom) == 2:
+	#	extra += ", style=filled, fillcolor=yellow"
 
 	if rom == "Perm":
 		extra += ", shape = circle, fillcolor=white"
@@ -597,7 +578,7 @@ def draw_nodes():
 def draw_edges():
 	for bytte in bytter:
 		farge = farger[bytte[2]] if bytte[2] != -1 else farge_ukjent
-		print "\t\"%s\" -> \"%s\" [color=%s, penwidth=2, arrowsize=1.4, constraint=false]" % (bytte[0], bytte[1], farge)
+		print "\t\"%s\" -> \"%s\" [color=%s, penwidth=1.5, arrowsize=1.4, constraint=false]" % (bytte[0], bytte[1], farge)
 
 
 print """digraph {
