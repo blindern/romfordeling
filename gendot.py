@@ -19,6 +19,8 @@ file_bytter = ""
 if len(sys.argv) > 2:
 	file_bytter = sys.argv[2]
 
+# settes ved load_bytter
+has_semesters = False
 
 # definisjon av romkartet
 table = {
@@ -456,6 +458,7 @@ def gen_allerom():
 
 # hent inn bytter fra fil
 def load_bytter(filnavn):
+	semesters = []
 	lines = []
 	with open(filnavn, "r") as content_file:
 		lines = content_file.readlines()
@@ -466,7 +469,10 @@ def load_bytter(filnavn):
 		if res:
 			fra.append(str(res.group(1)))
 			til.append(str(res.group(2)))
+			semesters.append(int(res.group(4) if res.group(3) else -1))
 			bytter.append([str(res.group(1)), str(res.group(2)), int(res.group(4)) if res.group(3) else -1])
+
+	has_semesters = len(set(semesters)) > 1
 
 # tegn labels for semesterantall
 def draw_labels_semester():
@@ -597,7 +603,8 @@ load_utlyst(file_utlysninger)
 if file_bytter:
 	draw_labels_romstatus_resultat()
 	load_bytter(file_bytter)
-	draw_labels_semester()
+	if has_semesters:
+		draw_labels_semester()
 
 else:
 	draw_labels_romstatus_utlyst()
