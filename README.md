@@ -4,15 +4,17 @@ Opprinnelig laget vår 2014 av Henrik Steen.
 
 ## Lag visualisering
 
-Rediger utlyst.txt og bytter.txt og generer bilde med:
+Opprett en ny mappe for romfordelingen. Se tidligere mapper for hvordan
+`utlyst.txt` og `bytter.txt` skal se ut. Generer bilde med:
 
 ```bash
-./genpng.sh utlyst.txt bytter.txt
+./genpng.sh 2019-06
 ```
 
-Da får man `file.png` som gir en visuell representasjon av romfordelingen.
+Da får man generert `generated.png` i angitt mappe som gir en visuell
+representasjon av romfordelingen.
 
-Rediger genpng.py for romoppsett o.l.
+Rediger `genpng.py` for romoppsett o.l.
 
 ## Eksempel
 
