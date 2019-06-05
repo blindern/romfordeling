@@ -1,29 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-# @author: Henrik Steen
-
-# generate image with:
-# $ python gendot.py utlysninger.txt bytter.txt >file.dot
-# $ dot -n -Tpng file.dot >file.png
-
 import re
 import sys
 
-if len(sys.argv) < 2:
-    sys.stderr.write("Mangler argumenter!\n")
-    sys.exit(1)
-
-file_utlysninger = sys.argv[1]
-file_bytter = ""
-if len(sys.argv) > 2:
-    file_bytter = sys.argv[2]
-
-# settes ved load_bytter
-has_semesters = False
-
 # definisjon av romkartet
-table = {
+all_rooms_map = {
     "100a": {
         "x": 3,
         "y": 1.9,
@@ -338,8 +319,6 @@ table = {
     "Perm": {"x": 0, "y": 1.5, "nodesa": [["Perm", -0.35, 0, 0.7, 0.5]]},
 }
 
-allerom = []
-
 dobbeltrom = [
     "122",
     "222",
@@ -366,20 +345,6 @@ dobbeltrom = [
 
 parrom = ["712", "6B", "P1+4", "H7"]
 
-utlyst = []
-
-fra = [
-    # romnr
-]
-
-til = [
-    # romnr
-]
-
-bytter = [
-    # [fra, til, semesterantall]
-]
-
 farger = [
     "orangered",
     "orangered",  # 1
@@ -399,60 +364,93 @@ farger = [
 farge_ukjent = "orangered"
 
 
-# hent utlyste rom fra fil
-def load_utlyst(filnavn):
-    lines = []
-    with open(filnavn, "r") as content_file:
-        lines = content_file.readlines()
+class Parsed:
+    def __init__(self, file_utlyst, file_bytter):
+        self.utlyst = self.load_utlyst(file_utlyst)
 
-    for line in lines:
-        line = line.split("#")[0].strip()
-        if len(line) > 0:
-            if not str(line) in allerom:
-                sys.stderr.write(
-                    "OBS! Utlyst rom '%s' ikke funnet i romlisten\n" % str(line)
+        fra, til, bytter, has_semesters = self.load_bytter(file_bytter)
+        self.fra = fra
+        self.til = til
+        self.bytter = bytter
+        self.has_semesters = has_semesters
+
+    def load_utlyst(self, filnavn):
+        """
+        Hent utlyste rom fra fil.
+        """
+        lines = []
+        with open(filnavn, "r") as content_file:
+            lines = content_file.readlines()
+
+        result = []
+        for line in lines:
+            line = line.split("#")[0].strip()
+            if len(line) > 0:
+                if not str(line) in get_allerom():
+                    sys.stderr.write(
+                        "OBS! Utlyst rom '%s' ikke funnet i romlisten\n" % str(line)
+                    )
+                result.append(str(line))
+
+        return result
+
+    def load_bytter(self, filnavn):
+        """
+        Hent inn bytter fra fil.
+        """
+        lines = []
+        with open(filnavn, "r") as content_file:
+            lines = content_file.readlines()
+
+        fra = [
+            # romnr
+        ]
+
+        til = [
+            # romnr
+        ]
+
+        bytter = [
+            # [fra, til, semesterantall]
+        ]
+
+        semesters = []
+
+        recheck = re.compile(r"^(.+) -> ([^ ]+)( \[(.*)\])?$", re.DOTALL)
+        for line in lines:
+            res = recheck.match(line.strip())
+            if res:
+                fra.append(str(res.group(1)))
+                til.append(str(res.group(2)))
+                semesters.append(int(res.group(4) if res.group(3) else -1))
+                bytter.append(
+                    [
+                        str(res.group(1)),
+                        str(res.group(2)),
+                        int(res.group(4)) if res.group(3) else -1,
+                    ]
                 )
-            utlyst.append(str(line))
+
+        has_semesters = len(set(semesters)) > 1
+
+        return fra, til, bytter, has_semesters
 
 
 # lag liste over alle rom
-def gen_allerom():
-    for groupid in table:
-        group = table[groupid]
+def get_allerom():
+    result = []
+
+    for groupid in all_rooms_map:
+        group = all_rooms_map[groupid]
 
         if "nodes" in group:
             for node in group["nodes"]:
-                allerom.append(str(node[0]))
+                result.append(str(node[0]))
         elif "nodesa" in group:
             for node in group["nodesa"]:
-                allerom.append(str(node[0]))
+                result.append(str(node[0]))
 
-
-# hent inn bytter fra fil
-def load_bytter(filnavn):
-    global has_semesters
-
-    semesters = []
-    lines = []
-    with open(filnavn, "r") as content_file:
-        lines = content_file.readlines()
-
-    recheck = re.compile(r"^(.+) -> ([^ ]+)( \[(.*)\])?$", re.DOTALL)
-    for line in lines:
-        res = recheck.match(line.strip())
-        if res:
-            fra.append(str(res.group(1)))
-            til.append(str(res.group(2)))
-            semesters.append(int(res.group(4) if res.group(3) else -1))
-            bytter.append(
-                [
-                    str(res.group(1)),
-                    str(res.group(2)),
-                    int(res.group(4)) if res.group(3) else -1,
-                ]
-            )
-
-    has_semesters = len(set(semesters)) > 1
+    return result
 
 
 # tegn labels for semesterantall
@@ -466,58 +464,46 @@ def draw_labels_semester():
 
 # tegn labels for bytter
 def draw_labels_romstatus_resultat():
-    print(
-        'label0 [ label = "tildelt uten utlysning",       fillcolor = red,            style = filled, pos = "10, 9.0!", shape = box, height = .25 ]'
-    )
-    print(
-        'label1 [ label = "feil ved utlysning",           fillcolor = firebrick,      style = filled, pos = "10, 8.6!", shape = box, height = .25 ]'
-    )
-    print(
-        'label2 [ label = "utlyst og tildelt",            fillcolor = mediumblue,     style = filled, pos = "10, 8.2!", shape = box, height = .25 ]'
-    )
-    print(
-        'label3 [ label = "opprykksrom",                  fillcolor = royalblue,      style = filled, pos = "10, 7.8!", shape = box, height = .25 ]'
-    )
-    print(
-        'label4 [ label = "utlyst men ingen tildelt",     fillcolor = green,          style = filled, pos = "10, 7.4!", shape = box, height = .25 ]'
-    )
-    print(
-        'label5 [ label = "fraflyttet, ingen opprykk",    fillcolor = darkgreen,      style = filled, pos = "10, 7.0!", shape = box, height = .25 ]'
-    )
-    print(
-        'label6 [ label = "dobbeltrom",                   fillcolor = gray93,         style = filled, pos = "10, 6.6!", shape = box, height = .25 ]'
-    )
-    print(
-        'label7 [ label = "ingen endring",                fillcolor = gray40,         style = filled, pos = "10, 6.2!", shape = box, height = .25 ]'
-    )
+    labels = [
+        'label0 [ label = "tildelt uten utlysning",       fillcolor = red,            style = filled, pos = "10, 9.0!", shape = box, height = .25 ]',
+        'label1 [ label = "feil ved utlysning",           fillcolor = firebrick,      style = filled, pos = "10, 8.6!", shape = box, height = .25 ]',
+        'label2 [ label = "utlyst og tildelt",            fillcolor = mediumblue,     style = filled, pos = "10, 8.2!", shape = box, height = .25 ]',
+        'label3 [ label = "opprykksrom",                  fillcolor = royalblue,      style = filled, pos = "10, 7.8!", shape = box, height = .25 ]',
+        'label4 [ label = "utlyst men ingen tildelt",     fillcolor = green,          style = filled, pos = "10, 7.4!", shape = box, height = .25 ]',
+        'label5 [ label = "fraflyttet, ingen opprykk",    fillcolor = darkgreen,      style = filled, pos = "10, 7.0!", shape = box, height = .25 ]',
+        'label6 [ label = "dobbeltrom",                   fillcolor = gray93,         style = filled, pos = "10, 6.6!", shape = box, height = .25 ]',
+        'label7 [ label = "ingen endring",                fillcolor = gray40,         style = filled, pos = "10, 6.2!", shape = box, height = .25 ]',
+    ]
+
+    for label in labels:
+        print(label)
 
 
 # tegn labels for bytter
 def draw_labels_romstatus_utlyst():
-    print(
-        'label4 [ label = "utlyst",                        fillcolor = green,          style = filled, pos = "10, 9.0!", shape = box, height = .25 ]'
-    )
-    print(
-        'label7 [ label = "ikke utlyst",                   fillcolor = gray40,         style = filled, pos = "10, 8.6!", shape = box, height = .25 ]'
-    )
-    print(
-        'label6 [ label = "dobbeltrom\n(fordeles av adm)", fillcolor = gray93,         style = filled, pos = "10, 8.1!", shape = box, height = .25 ]'
-    )
+    labels = [
+        'label4 [ label = "utlyst",                        fillcolor = green,          style = filled, pos = "10, 9.0!", shape = box, height = .25 ]',
+        'label7 [ label = "ikke utlyst",                   fillcolor = gray40,         style = filled, pos = "10, 8.6!", shape = box, height = .25 ]',
+        'label6 [ label = "dobbeltrom\n(fordeles av adm)", fillcolor = gray93,         style = filled, pos = "10, 8.1!", shape = box, height = .25 ]',
+    ]
+
+    for label in labels:
+        print(label)
 
 
 # finn stil for et rom
-def get_extra(rom):
+def get_extra(rom, parsed):
     rom = str(rom)
     extra = ""
 
     # utlyst rom
-    if rom in utlyst:
+    if rom in parsed.utlyst:
         # feil: bytte fra
-        if rom in fra and rom not in parrom and rom not in dobbeltrom:
+        if rom in parsed.fra and rom not in parrom and rom not in dobbeltrom:
             extra += ", style = filled, fillcolor=firebrick"
 
         # ingen tildelt
-        elif rom not in til:
+        elif rom not in parsed.til:
             extra += ", style = filled, fillcolor=green"
 
         # tildelt
@@ -527,9 +513,9 @@ def get_extra(rom):
     # ikke utlyst
     else:
         # tildelt
-        if rom in til:
+        if rom in parsed.til:
             # ikke opprykk
-            if rom not in fra:
+            if rom not in parsed.fra:
                 extra += ", style = filled, fillcolor=red"
 
             # opprykksrom
@@ -541,7 +527,7 @@ def get_extra(rom):
             extra += ", style=filled, fillcolor=gray93"
 
         # fraflyttet
-        elif rom in fra:
+        elif rom in parsed.fra:
             extra += ", style=filled, fillcolor=darkgreen"
 
         # ikke tildelt, ikke dobbeltrom
@@ -567,15 +553,15 @@ def get_extra(rom):
 
 
 # tegn rommene
-def draw_nodes():
-    for groupid in table:
-        group = table[groupid]
+def draw_nodes(parsed):
+    for groupid in all_rooms_map:
+        group = all_rooms_map[groupid]
         x = float(group["x"])
         y = float(group["y"])
 
         if "nodes" in group:
             for node in group["nodes"]:
-                extra = get_extra(node[0])
+                extra = get_extra(node[0], parsed)
                 print(
                     '\t"%s" [ pos = "%.4f,%.4f!", shape = box, width = .8, height = %.4f, fixedsize = true%s ];'
                     % (node[0], x, y + (node[1] / 2.0), float(node[1]), extra)
@@ -588,7 +574,7 @@ def draw_nodes():
                 ax = node[1] + x + node[3] / 2.0
                 ay = node[2] + y + node[4] / 2.0
 
-                extra = get_extra(node[0])
+                extra = get_extra(node[0], parsed)
                 print(
                     '\t"%s" [ pos = "%.4f,%.4f!", shape = box, width = %.4f, height = %.4f, fixedsize = true%s ];'
                     % (node[0], ax, ay, float(node[3]), float(node[4]), extra)
@@ -596,17 +582,26 @@ def draw_nodes():
 
 
 # tegn rombyttene
-def draw_edges():
-    for bytte in bytter:
-        farge = farger[bytte[2]] if bytte[2] != -1 else farge_ukjent
+def draw_edges(parsed):
+    for bytte in parsed.bytter:
         print(
             '\t"%s" -> "%s" [color=%s, penwidth=1.5, arrowsize=1.4, constraint=false]'
-            % (bytte[0], bytte[1], farge)
+            % (bytte[0], bytte[1], farger[bytte[2]] if bytte[2] != -1 else farge_ukjent)
         )
 
 
-print(
-    """digraph {
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        sys.stderr.write("Mangler argumenter!\n")
+        sys.exit(1)
+
+    file_utlysninger = sys.argv[1]
+    file_bytter = None
+    if len(sys.argv) > 2:
+        file_bytter = sys.argv[2]
+
+    print(
+        """digraph {
     layout=fdp
     overlap = true
 
@@ -614,22 +609,19 @@ print(
     splines=curved
 
     outputorder=nodesfirst"""
-)
+    )
 
-gen_allerom()
+    parsed = Parsed(file_utlysninger, file_bytter)
 
-load_utlyst(file_utlysninger)
+    if file_bytter is not None:
+        draw_labels_romstatus_resultat()
+        if parsed.has_semesters:
+            draw_labels_semester()
 
-if file_bytter:
-    draw_labels_romstatus_resultat()
-    load_bytter(file_bytter)
-    if has_semesters:
-        draw_labels_semester()
+    else:
+        draw_labels_romstatus_utlyst()
 
-else:
-    draw_labels_romstatus_utlyst()
+    draw_nodes(parsed)
+    draw_edges(parsed)
 
-draw_nodes()
-draw_edges()
-
-print("}")
+    print("}")
